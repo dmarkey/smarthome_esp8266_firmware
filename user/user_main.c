@@ -88,96 +88,99 @@ os_event_t    user_procTaskQueue[user_procTaskQueueLen];
 
 void ICACHE_FLASH_ATTR shiftOut(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder, uint8_t val)
 {
-        uint8_t i;
+    uint8_t i;
 
-        for (i = 0; i < 8; i++)  {
-                if (bitOrder == LSBFIRST)
-                        digitalWrite(dataPin, !!(val & (1 << i)));
-                else
-                        digitalWrite(dataPin, !!(val & (1 << (7 - i))));
+    for (i = 0; i < 8; i++)  {
+        if (bitOrder == LSBFIRST)
+            digitalWrite(dataPin, !!(val & (1 << i)));
+        else
+            digitalWrite(dataPin, !!(val & (1 << (7 - i))));
 
-                digitalWrite(clockPin, HIGH);
-                digitalWrite(clockPin, LOW);
-        }
-}
-
-
-
-char ICACHE_FLASH_ATTR * detectCookie(char* buf, char* cookie_name){
-  //Serial.println(buf);
-  char* index = strstr(buf, cookie_name);
-  if(index != NULL){
-    char* tmp = index;
-    while(*tmp != ';'){
-      tmp ++;
-    }
-    *tmp='\0';
-    index += strlen(cookie_name) + 1;
-    //Serial.println(index);
-    return index;
-
-  }
-}
-
-
-
-void ICACHE_FLASH_ATTR headers_read(char * headers){
-
-	int i;
-	for (i=0; i++; i< strlen(headers))
-    if ( headers[i] == '\n'){
-        if (csrf == NULL)
-        {
-          csrf = detectCookie(headers, "csrftoken");
-        }
-        if (session == NULL)
-        {
-          session = detectCookie(headers, "sessionid");
-        }
-        if (csrf != NULL && session != NULL){
-          break;
-        }
+        digitalWrite(clockPin, HIGH);
+        digitalWrite(clockPin, LOW);
     }
 }
 
 
 
-void ICACHE_FLASH_ATTR push_to_register(){
-	INFO("PUSH\n");
-	digitalWrite(latchPin, LOW);
-	shiftOut(dataPin, clockPin, MSBFIRST, register_state);
-	digitalWrite(latchPin, HIGH);
-	
+char ICACHE_FLASH_ATTR * detectCookie(char* buf, char* cookie_name)
+{
+    //Serial.println(buf);
+    char* index = strstr(buf, cookie_name);
+    if(index != NULL) {
+        char* tmp = index;
+        while(*tmp != ';') {
+            tmp ++;
+        }
+        *tmp='\0';
+        index += strlen(cookie_name) + 1;
+        //Serial.println(index);
+        return index;
+
+    }
+}
+
+
+
+void ICACHE_FLASH_ATTR headers_read(char * headers)
+{
+
+    int i;
+    for (i=0; i++; i< strlen(headers))
+        if ( headers[i] == '\n') {
+            if (csrf == NULL) {
+                csrf = detectCookie(headers, "csrftoken");
+            }
+            if (session == NULL) {
+                session = detectCookie(headers, "sessionid");
+            }
+            if (csrf != NULL && session != NULL) {
+                break;
+            }
+        }
+}
+
+
+
+void ICACHE_FLASH_ATTR push_to_register()
+{
+    INFO("PUSH\n");
+    digitalWrite(latchPin, LOW);
+    shiftOut(dataPin, clockPin, MSBFIRST, register_state);
+    digitalWrite(latchPin, HIGH);
+
 }
 char main_topic[50];
 
 
-void  ICACHE_FLASH_ATTR register_incrementer(){
+void  ICACHE_FLASH_ATTR register_incrementer()
+{
 
-	register_state++;
-	push_to_register();
-	os_timer_arm(&RegisterTimer, 50, 0);
+    register_state++;
+    push_to_register();
+    os_timer_arm(&RegisterTimer, 50, 0);
 }
 
 
 
 
-int ICACHE_FLASH_ATTR cgiWiFiScan(HttpdConnData *connData) {
+int ICACHE_FLASH_ATTR cgiWiFiScan(HttpdConnData *connData)
+{
     char buff[2048];
     char ssid[32], passwd[64];
     int result = httpdFindArg(connData->postBuff, "ssid", ssid, sizeof(ssid));
 
     if (connData->postLen > 10) {
         result = httpdFindArg(connData->postBuff, "password", passwd, sizeof(passwd));
-        if (result != -1){
-                os_strncpy((char*)sysCfg.sta_ssid, ssid, 32);
-                os_strncpy((char*)sysCfg.sta_pwd, passwd, 64);
-                os_strcpy(buff, sysCfg.sta_ssid);
-                httpdSend(connData, buff, -1);
-                CFG_Save();
-                os_timer_setfn(&rebootTimer, (os_timer_func_t *)system_restart, NULL);
-                os_timer_arm(&rebootTimer, 5000, 0);
-                return HTTPD_CGI_DONE;
+        if (result != -1) {
+            os_strncpy((char*)sysCfg.sta_ssid, ssid, 32);
+            os_strncpy((char*)sysCfg.sta_pwd, passwd, 64);
+            os_strcpy(buff, sysCfg.sta_ssid);
+            httpdSend(connData, buff, -1);
+            CFG_Save();
+            os_timer_setfn(&rebootTimer, (os_timer_func_t *)system_restart, NULL);
+            os_timer_arm(&rebootTimer, 5000, 0);
+            return HTTPD_CGI_DONE;
 
         }
 
@@ -202,7 +205,7 @@ void ICACHE_FLASH_ATTR my_http_callback(char * response, int http_status, char *
 }
 
 
-HttpdBuiltInUrl builtInUrls[]={
+HttpdBuiltInUrl builtInUrls[]= {
     {"*", cgiWiFiScan, NULL},
     {NULL, NULL, NULL}
 };
@@ -216,66 +219,67 @@ void ICACHE_FLASH_ATTR wifiFailedCB(uint8_t status)
 void ICACHE_FLASH_ATTR mqttConnectedCb(uint32_t *args)
 {
     char queue_name[100];
-	MQTT_Client* client = (MQTT_Client*)args;
+    MQTT_Client* client = (MQTT_Client*)args;
     int id = system_get_chip_id();
-	INFO("MQTT: Connected\r\n");
+    INFO("MQTT: Connected\r\n");
     os_sprintf(main_topic, "/smart_plug_work/SmartPlug-%d", id);
-	MQTT_Subscribe(client, main_topic, 0);
+    MQTT_Subscribe(client, main_topic, 0);
 
 }
 
 void ICACHE_FLASH_ATTR mqttDisconnectedCb(uint32_t *args)
 {
-	MQTT_Client* client = (MQTT_Client*)args;
-	INFO("MQTT: Disconnected\r\n");
+    MQTT_Client* client = (MQTT_Client*)args;
+    INFO("MQTT: Disconnected\r\n");
 }
 
 void ICACHE_FLASH_ATTR mqttPublishedCb(uint32_t *args)
 {
-	MQTT_Client* client = (MQTT_Client*)args;
-	INFO("MQTT: Published\r\n");
+    MQTT_Client* client = (MQTT_Client*)args;
+    INFO("MQTT: Published\r\n");
 }
 
-void ICACHE_FLASH_ATTR flip_switch(int swit){
+void ICACHE_FLASH_ATTR flip_switch(int swit)
+{
 
-	char buf[9];
-	int i;
-	swit--;
-	bitToggle(register_state, swit);
+    char buf[9];
+    int i;
+    swit--;
+    bitToggle(register_state, swit);
 
-	push_to_register();
-
-
-
-	for (i=0; i<8; i++){
-		if (bitRead(register_state, i) == true){
-			buf[i] = '1';
-		}
-		else{
-			buf[i] = '0';
-		}
+    push_to_register();
 
 
-	}
-	buf[8] = '\0';
-	INFO(buf);
+
+    for (i=0; i<8; i++) {
+        if (bitRead(register_state, i) == true) {
+            buf[i] = '1';
+        } else {
+            buf[i] = '0';
+        }
+
+
+    }
+    buf[8] = '\0';
+    INFO(buf);
     MQTT_Publish(&mqttClient, "/results", buf, sizeof(buf), 0,
                  0);
 
 }
 
-void  ICACHE_FLASH_ATTR process_command(char * data){
+void  ICACHE_FLASH_ATTR process_command(char * data)
+{
 
 
     char cmd[50];
 
-    if ( get_json_value(data, "command", cmd, 50) == 1){
+    if ( get_json_value(data, "command", cmd, 50) == 1) {
 
 
-        if (strcmp(cmd, "switch" ) == 0){
+        if (strcmp(cmd, "switch" ) == 0) {
 
             int switch_num;
-            if (get_json_value(data, "switchnum", &switch_num, 1) == 1){
+            if (get_json_value(data, "switchnum", &switch_num, 1) == 1) {
                 os_printf("%d", switch_num);
                 flip_switch(switch_num);
             }
@@ -293,56 +297,57 @@ void  ICACHE_FLASH_ATTR process_command(char * data){
 
 void ICACHE_FLASH_ATTR mqttDataCb(uint32_t *args, const char* topic, uint32_t topic_len, const char *data, uint32_t data_len)
 {
-	char *topicBuf = (char*)os_zalloc(topic_len+1),
-			*dataBuf = (char*)os_zalloc(data_len+1);
+    char *topicBuf = (char*)os_zalloc(topic_len+1),
+          *dataBuf = (char*)os_zalloc(data_len+1);
 
-	MQTT_Client* client = (MQTT_Client*)args;
+    MQTT_Client* client = (MQTT_Client*)args;
 
-	os_memcpy(topicBuf, topic, topic_len);
-	topicBuf[topic_len] = 0;
+    os_memcpy(topicBuf, topic, topic_len);
+    topicBuf[topic_len] = 0;
 
-	os_memcpy(dataBuf, data, data_len);
-	dataBuf[data_len] = 0;
+    os_memcpy(dataBuf, data, data_len);
+    dataBuf[data_len] = 0;
 
-    if( strcmp(topic, main_topic)){
+    if( strcmp(topic, main_topic)) {
         process_command(dataBuf);
     }
 
-	INFO("Receive topic: %s, data: %s \r\n", topicBuf, dataBuf);
-	os_free(topicBuf);
-	os_free(dataBuf);
+    INFO("Receive topic: %s, data: %s \r\n", topicBuf, dataBuf);
+    os_free(topicBuf);
+    os_free(dataBuf);
 }
 
 
 
 
-void ICACHE_FLASH_ATTR mqtt_init(){
+void ICACHE_FLASH_ATTR mqtt_init()
+{
 
 
-	CFG_Load();
+    CFG_Load();
 
-	MQTT_InitConnection(&mqttClient, "dmarkey.mooo.com", 8000, sysCfg.security);
+    MQTT_InitConnection(&mqttClient, "dmarkey.mooo.com", 8000, sysCfg.security);
 
 
-	MQTT_InitClient(&mqttClient, sysCfg.device_id, sysCfg.mqtt_user, sysCfg.mqtt_pass, 30, 1);
+    MQTT_InitClient(&mqttClient, sysCfg.device_id, sysCfg.mqtt_user, sysCfg.mqtt_pass, 30, 1);
 
-	MQTT_OnConnected(&mqttClient, mqttConnectedCb);
-	MQTT_OnDisconnected(&mqttClient, mqttDisconnectedCb);
-	MQTT_OnPublished(&mqttClient, mqttPublishedCb);
-	MQTT_OnData(&mqttClient, mqttDataCb);
-	MQTT_Connect(&mqttClient);
+    MQTT_OnConnected(&mqttClient, mqttConnectedCb);
+    MQTT_OnDisconnected(&mqttClient, mqttDisconnectedCb);
+    MQTT_OnPublished(&mqttClient, mqttPublishedCb);
+    MQTT_OnData(&mqttClient, mqttDataCb);
+    MQTT_Connect(&mqttClient);
 
 
 }
 
 void ICACHE_FLASH_ATTR wifiConnectCb(uint8_t status)
 {
-	if(status == STATION_GOT_IP){
-		mqtt_init();
+    if(status == STATION_GOT_IP) {
+        mqtt_init();
         http_get("http://wtfismyip.com/text", my_http_callback);
-	} else {
-		MQTT_Disconnect(&mqttClient);
-	}
+    } else {
+        MQTT_Disconnect(&mqttClient);
+    }
 }
 
 int ICACHE_FLASH_ATTR get_json_value(char * input, char * name, char * output, int len )
@@ -352,20 +357,16 @@ int ICACHE_FLASH_ATTR get_json_value(char * input, char * name, char * output, i
     jsonparse_setup(&parser, input, strlen(input));
     int type, type1;
 
-    while ((type = jsonparse_next(&parser)) != 0)
-    {
-        if (type == JSON_TYPE_PAIR_NAME)
-        {
-            if (jsonparse_strcmp_value(&parser, name) == 0)
-            {
+    while ((type = jsonparse_next(&parser)) != 0) {
+        if (type == JSON_TYPE_PAIR_NAME) {
+            if (jsonparse_strcmp_value(&parser, name) == 0) {
                 jsonparse_next(&parser);
                 type1 = jsonparse_next(&parser);
-                if (type1 == JSON_TYPE_NUMBER){
+                if (type1 == JSON_TYPE_NUMBER) {
                     int output_int = jsonparse_get_value_as_int(&parser);
                     os_memcpy(output, &output_int, sizeof(output_int));
                     return 1;
-                }
-                else if (type1 == JSON_TYPE_STRING){
+                } else if (type1 == JSON_TYPE_STRING) {
                     jsonparse_copy_value(&parser, output, len);
                     INFO(output);
                     return 1;
@@ -386,13 +387,10 @@ static void ICACHE_FLASH_ATTR loop(os_event_t *events)
 
 
     CFG_Load();
+    WIFI_Connect(sysCfg.sta_ssid, sysCfg.sta_pwd, wifiConnectCb, wifiFailedCB);
 
-
-
-	WIFI_Connect(sysCfg.sta_ssid, sysCfg.sta_pwd, wifiConnectCb, wifiFailedCB);
-
-	INFO("\r\nSystem started ...\r\n");
-        uart0_sendStr("\nREADY\n");
+    INFO("\r\nSystem started ...\r\n");
+    uart0_sendStr("\nREADY\n");
 
 
 }
@@ -400,11 +398,12 @@ static void ICACHE_FLASH_ATTR loop(os_event_t *events)
 
 
 
-void user_init(void){
+void user_init(void)
+{
 
- 
-	PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0RXD_U, FUNC_GPIO3);
-	push_to_register();
+
+    PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0RXD_U, FUNC_GPIO3);
+    push_to_register();
     stdout_init();
 
 
