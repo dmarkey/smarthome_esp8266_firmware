@@ -28,8 +28,8 @@
 * POSSIBILITY OF SUCH DAMAGE.
 */
 #include "ets_sys.h"
-//#include "stdout/stdout.h"
-#include "driver/uart.h"
+#include "stdout/stdout.h"
+//#include "driver/uart.h"
 #include "osapi.h"
 #include "mqtt.h"
 #include "wifi.h"
@@ -77,6 +77,10 @@ int connection_attempts = 0;
 
 int register_state = 0;
 
+char * csrf;
+char * session;
+
+
 static ETSTimer rebootTimer;
 
 os_event_t    user_procTaskQueue[user_procTaskQueueLen];
@@ -115,9 +119,6 @@ char ICACHE_FLASH_ATTR * detectCookie(char* buf, char* cookie_name){
   }
 }
 
-char *csrf;
-char *session;
-
 
 
 void ICACHE_FLASH_ATTR headers_read(char * headers){
@@ -146,6 +147,7 @@ void ICACHE_FLASH_ATTR push_to_register(){
 	digitalWrite(latchPin, LOW);
 	shiftOut(dataPin, clockPin, MSBFIRST, register_state);
 	digitalWrite(latchPin, HIGH);
+	
 }
 char main_topic[50];
 
@@ -158,14 +160,8 @@ void  ICACHE_FLASH_ATTR register_incrementer(){
 }
 
 
-char * csrf;
-char * session;
 
 
-
-//This CGI is called from the bit of AJAX-code in wifi.tpl. It will initiate a
-//scan for access points and if available will return the result of an earlier scan.
-//The result is embedded in a bit of JSON parsed by the javascript in wifi.tpl.
 int ICACHE_FLASH_ATTR cgiWiFiScan(HttpdConnData *connData) {
     char buff[2048];
     char ssid[32], passwd[64];
@@ -195,9 +191,6 @@ int ICACHE_FLASH_ATTR cgiWiFiScan(HttpdConnData *connData) {
 }
 
 
-
-
-
 void ICACHE_FLASH_ATTR my_http_callback(char * response, int http_status, char * full_response, char * headers)
 {
 
@@ -217,9 +210,7 @@ HttpdBuiltInUrl builtInUrls[]={
 void ICACHE_FLASH_ATTR wifiFailedCB(uint8_t status)
 {
     INFO("Wifi connect failed, starting fallback");
-    //ioInit();
     httpdInit(builtInUrls, 80);
-
 }
 
 void ICACHE_FLASH_ATTR mqttConnectedCb(uint32_t *args)
@@ -270,8 +261,6 @@ void ICACHE_FLASH_ATTR flip_switch(int swit){
 	INFO(buf);
     MQTT_Publish(&mqttClient, "/results", buf, sizeof(buf), 0,
                  0);
-
-    //GPIO_OUTPUT_SET(0, 1);
 
 }
 
@@ -332,19 +321,11 @@ void ICACHE_FLASH_ATTR mqtt_init(){
 
 	CFG_Load();
 
-
-
-
-
-
-
 	MQTT_InitConnection(&mqttClient, "dmarkey.mooo.com", 8000, sysCfg.security);
-	//MQTT_InitConnection(&mqttClient, "192.168.11.122", 1880, 0);
+
 
 	MQTT_InitClient(&mqttClient, sysCfg.device_id, sysCfg.mqtt_user, sysCfg.mqtt_pass, 30, 1);
-	//MQTT_InitClient(&mqttClient, "client_id", "user", "pass", 120, 1);
 
-	//MQTT_InitLWT(&mqttClient, "/lwt", "offline", 0, 0);
 	MQTT_OnConnected(&mqttClient, mqttConnectedCb);
 	MQTT_OnDisconnected(&mqttClient, mqttDisconnectedCb);
 	MQTT_OnPublished(&mqttClient, mqttPublishedCb);
@@ -353,7 +334,6 @@ void ICACHE_FLASH_ATTR mqtt_init(){
 
 
 }
-
 
 void ICACHE_FLASH_ATTR wifiConnectCb(uint8_t status)
 {
@@ -364,12 +344,6 @@ void ICACHE_FLASH_ATTR wifiConnectCb(uint8_t status)
 		MQTT_Disconnect(&mqttClient);
 	}
 }
-
-
-
-
-
-
 
 int ICACHE_FLASH_ATTR get_json_value(char * input, char * name, char * output, int len )
 {
@@ -407,11 +381,6 @@ int ICACHE_FLASH_ATTR get_json_value(char * input, char * name, char * output, i
 
 }
 
-
-
-
-
-
 static void ICACHE_FLASH_ATTR loop(os_event_t *events)
 {
 
@@ -426,11 +395,6 @@ static void ICACHE_FLASH_ATTR loop(os_event_t *events)
         uart0_sendStr("\nREADY\n");
 
 
-	//os_timer_setfn(&RegisterTimer, (os_timer_func_t *)register_incrementer, NULL);
-	//os_timer_arm(&RegisterTimer, 50, 0);
-
-    //system_os_post(user_procTaskPrio, 0, 0 );
-
 }
 
 
@@ -438,9 +402,7 @@ static void ICACHE_FLASH_ATTR loop(os_event_t *events)
 
 void user_init(void){
 
-    //uart_init(BIT_RATE_115200, BIT_RATE_115200);
-
-    //system_restore();
+ 
 	PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0RXD_U, FUNC_GPIO3);
 	push_to_register();
     stdout_init();
@@ -453,30 +415,3 @@ void user_init(void){
     system_os_post(user_procTaskPrio, 0, 0 );
 
 }
-
-
-
-/*void user_init(void)
-{
-        uart_init(BIT_RATE_115200, BIT_RATE_115200);
-        os_delay_us(1000000);
-
-        CFG_Load();
-
-        MQTT_InitConnection(&mqttClient, sysCfg.mqtt_host, sysCfg.mqtt_port, sysCfg.security);
-        //MQTT_InitConnection(&mqttClient, "192.168.11.122", 1880, 0);
-
-        MQTT_InitClient(&mqttClient, sysCfg.device_id, sysCfg.mqtt_user, sysCfg.mqtt_pass, sysCfg.mqtt_keepalive, 1);
-        //MQTT_InitClient(&mqttClient, "client_id", "user", "pass", 120, 1);
-
-        //MQTT_InitLWT(&mqttClient, "/lwt", "offline", 0, 0);
-        //MQTT_OnConnected(&mqttClient, mqttConnectedCb);
-        //MQTT_OnDisconnected(&mqttClient, mqttDisconnectedCb);
-        //MQTT_OnPublished(&mqttClient, mqttPublishedCb);
-       // MQTT_OnData(&mqttClient, mqttDataCb);
-
-        //WIFI_Connect(sysCfg.sta_ssid, sysCfg.sta_pwd, wifiConnectCb);
-
-        INFO("\r\nSystem started ...\r\n");
-}*/
-
