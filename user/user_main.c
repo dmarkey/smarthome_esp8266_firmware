@@ -81,6 +81,8 @@ char * csrf;
 char * session;
 
 
+
+
 static ETSTimer rebootTimer;
 
 os_event_t    user_procTaskQueue[user_procTaskQueueLen];
@@ -151,16 +153,6 @@ void ICACHE_FLASH_ATTR push_to_register()
 
 }
 char main_topic[50];
-
-
-void  ICACHE_FLASH_ATTR register_incrementer()
-{
-
-    register_state++;
-    push_to_register();
-    os_timer_arm(&RegisterTimer, 50, 0);
-}
-
 
 
 
@@ -326,7 +318,7 @@ void ICACHE_FLASH_ATTR mqtt_init()
 
     CFG_Load();
 
-    MQTT_InitConnection(&mqttClient, "dmarkey.mooo.com", 8000, sysCfg.security);
+    MQTT_InitConnection(&mqttClient, "dmarkey.com", 8000, 0);
 
 
     MQTT_InitClient(&mqttClient, sysCfg.device_id, sysCfg.mqtt_user, sysCfg.mqtt_pass, 30, 1);
@@ -343,8 +335,15 @@ void ICACHE_FLASH_ATTR mqtt_init()
 void ICACHE_FLASH_ATTR wifiConnectCb(uint8_t status)
 {
     if(status == STATION_GOT_IP) {
+        char post_data[1000];
+
+        int id = system_get_chip_id();
+        os_sprintf(post_data, "type=1&controller_id=%d\n", id);
+        INFO(post_data);
+
+        http_post("http://dmarkey.com:8080/controller_ping_create/", post_data, NULL);
         mqtt_init();
-        http_get("http://wtfismyip.com/text", my_http_callback);
+
     } else {
         MQTT_Disconnect(&mqttClient);
     }
@@ -400,14 +399,12 @@ static void ICACHE_FLASH_ATTR loop(os_event_t *events)
 
 void user_init(void)
 {
-
-
     PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0RXD_U, FUNC_GPIO3);
     push_to_register();
     stdout_init();
 
 
-    os_delay_us(1000000);
+    //os_delay_us(1000000);
     system_timer_reinit();
     INFO("Starting...");
     system_os_task(loop, user_procTaskPrio,user_procTaskQueue, user_procTaskQueueLen);
