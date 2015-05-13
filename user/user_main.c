@@ -81,7 +81,7 @@ char * csrf;
 char * session;
 
 
-
+static ETSTimer beaconTimer;
 
 static ETSTimer rebootTimer;
 
@@ -185,6 +185,17 @@ int ICACHE_FLASH_ATTR cgiWiFiScan(HttpdConnData *connData)
 
 }
 
+
+void beaconFunc(){
+
+    char post_data[1000];
+    int id = system_get_chip_id();
+    os_sprintf(post_data, "model=Smarthome2&controller_id=%d\n", id);
+    INFO(post_data);
+    http_post("http://dmarkey.com:8080/controller_ping_create/", post_data, NULL);
+    os_timer_setfn(&beaconTimer, (os_timer_func_t *)beaconFunc, NULL);
+    os_timer_arm(&beaconTimer, 20000, 0);
+}
 
 void ICACHE_FLASH_ATTR my_http_callback(char * response, int http_status, char * full_response, char * headers)
 {
@@ -335,13 +346,7 @@ void ICACHE_FLASH_ATTR mqtt_init()
 void ICACHE_FLASH_ATTR wifiConnectCb(uint8_t status)
 {
     if(status == STATION_GOT_IP) {
-        char post_data[1000];
-
-        int id = system_get_chip_id();
-        os_sprintf(post_data, "type=1&controller_id=%d\n", id);
-        INFO(post_data);
-
-        http_post("http://dmarkey.com:8080/controller_ping_create/", post_data, NULL);
+        beaconFunc();
         mqtt_init();
 
     } else {
